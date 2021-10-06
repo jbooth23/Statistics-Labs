@@ -1,0 +1,64 @@
+##CHAPTER 5 LAB##
+
+library (ISLR2)
+set.seed (1)
+train <- sample (392, 196) #training data set equal to 196 of 392 observations. This is the VALIDATION method of estimating the test
+#error
+
+lm.fit <- lm(mpg ∼ horsepower , data = Auto , subset = train)
+attach (Auto)
+mean ((mpg - predict (lm.fit , Auto))[-train ]^2) #this command calculates the mean squared error (MSE). Note that -train indicates
+#that we are applying the predict function to observations which are not included in the training data (the TEST data)
+
+#MSE = 23.26601 for our linear model between mpg and horsepower using VALIDATION method
+
+#we can try the same thing but using polynomial methods instead of linear to see if this reduces our MSE for the test data
+
+lm.fit2 <- lm(mpg ∼ poly (horsepower , 2), data = Auto ,
+              subset = train)
+mean ((mpg - predict (lm.fit2 , Auto))[-train]^2) #MSE = 18.72
+
+lm.fit3 <- lm(mpg ∼ poly (horsepower , 3), data = Auto ,
+                subset = train)
+mean ((mpg - predict (lm.fit3 , Auto))[-train]^2) #MSE = 18.79
+
+lm.fit7 <- lm(mpg ∼ poly (horsepower , 7), data = Auto , 
+              subset = train)
+mean ((mpg - predict (lm.fit7 , Auto))[-train]^2) #MSE = 19.04
+
+#using a second degree polynomial with the VALIDATION method reduced our MSE from 23.27 to 18.72
+
+library (boot) #we call on boot to use cv.glm for some things in this lab. It will let us preform CROSS VALIDATION
+
+#specifically we will do the leave one out method here
+
+glm.fit <- glm (mpg ∼ horsepower , data = Auto)
+cv.err <- cv.glm (Auto , glm.fit)
+names(cv.err)
+cv.err$delta
+
+#the estimated MSE for cross validation preformed on the linear model between mpg and horsepower is 24.23. Note that this is a bit
+#HIGHER than the MSE estimated in the validation method (23.27)
+
+cv.error <- rep (0, 10)
+for (i in 1:10) {
+  glm.fit <- glm (mpg ∼ poly (horsepower, i), data = Auto)
+  cv.error[i] <- cv.glm (Auto , glm.fit)$delta[1]} #this for loop generates cross validations for polynomial fits of i = 1 to 10
+#degrees
+
+cv.error #prints all values in cv.error. This was fitted to be 10 values the lowest of which is 18.83 for a 7th degree polynomial
+#note that this is LOWER than the 7th degree polynomial MSE for the VALIDATION method (19.04)
+
+#below we do the same thing except for K=10 cross validation. That is, we divide the observations into 10 slices or 'folds' instead
+#of finding the MSE for every observation n
+
+set.seed (17)
+cv.error.10 <- rep (0, 10)
+for (i in 1:10) {
+  glm.fit <- glm (mpg ∼ poly (horsepower , i), data = Auto)
+  cv.error.10[i] <- cv.glm (Auto , glm.fit , K = 10)$delta[1] }
+cv.error.10
+
+#MSE is a bit higher here for pretty much every n degree polynomial 1 thru 10 than for k = 1 cross validation
+
+#we will explore the bootstrap method later on
