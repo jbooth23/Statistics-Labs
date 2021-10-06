@@ -1,0 +1,86 @@
+library(MASS)
+library(ISLR2)
+library(car)
+
+head(Boston)
+lm.fit <- lm(medv ∼ lstat , data = Boston) #linear model where we specify the data source for our variables
+attach (Boston) #attaches the data source meaning we don't need to specify it anymore when writing linear models
+lm.fit = lm(medv ~ lstat) #as a result, this command works without error
+#note that the equals sign serves the exact same function as <- it assigns values/information to things like
+#linear models and dataframes
+lm.fit #this command gives us some very general information about our model, mainly the coefficients and the values
+#for each of them. Here, the intercept is 34.55 with a negative slope of magnitude 0.95
+
+summary (lm.fit) #gives much more information about the linear model
+names(lm.fit)
+lm.fit$fitted.values #lists the fitted y values (y hat) for every single x value 1 thru 506
+lm.fit$residuals #lists the residual y values (y hat - y_i) for every single x value
+par(mfrow = c(2,2))
+plot(lm.fit) #plots the linear model in a 2x2 grid
+par(mfrow = c(1,1))
+plot(lm.fit$residuals) #this is a plot of the residuals vs the x values, as listed in the command above
+plot(lm.fit$residuals ~ lm.fit$fitted.values) #plots the residuals vs the fitted values to see how the residuals
+#change for each plotted y value
+
+confint (lm.fit) #plots a 95% confidence interval for the coefficients of lm.fit. values of intercept are 95%
+#likely to be between 33.4 and 35.7 values for the slope are same likelihood to be between -1 and -0.87
+predict (lm.fit , data.frame(lstat = (c(5, 10, 15))),interval = "confidence")
+predict (lm.fit , data.frame(lstat = (c(5, 10, 15))),interval = "prediction")
+#confidence and prediction intervals for values of y given the 5th, 10th, and 15th x values in the dataset Boston
+
+plot(lstat, medv)
+abline (lm.fit) #the linear regression model produces a line and this command will draw it on the data it is
+#designed to fit onto
+
+abline (lm.fit , lwd = 3)
+abline (lm.fit , lwd = 3, col = " red ")
+plot (lstat , medv , col = " red ")
+plot (lstat , medv , pch = 20)
+plot (lstat , medv , pch = "+")
+plot (1:20, 1:20, pch = 1:20)
+
+plot (hatvalues (lm.fit)) #shows the leverage of every single observation (leverage plotted on y)
+
+which.max (hatvalues (lm.fit)) #which.max finds the maximum value in this case for leverage. We can do the same
+#thing for other stuff like residuals
+which.min(hatvalues(lm.fit)) #which.min finds the MINIMUM value. naturally, we can apply this to other things
+
+which.max(residuals(lm.fit)) #observation 372 has the biggest residual value
+which.min(residuals(lm.fit)) #observation 506 has the minimum residual value and is thus the best predicted by
+#the linear regression line
+
+lm.fit <- lm(medv ∼ lstat + age , data = Boston) #this is a multivariate model for the median home value
+#in the Boston dataset
+summary (lm.fit)
+lm.fit <- lm(medv ∼ ., data = Boston) #multivariate model for the dataset but including ALL variables as
+#predictors of the response, which is medv
+summary(lm.fit)
+summary(lm.fit)$r.sq #gives the R^2 value, which we can also view in summary(lm.fit)
+summary(lm.fit)$sigma #this command gives the RSE (Residual Standard Error)
+vif (lm.fit) #gives the Variance Inflation Factor (VIF) for every predictor
+
+lm.fit1 <- lm(medv ∼ . - age , data = Boston) #same regression model as above but EXCLUDES the age variable
+summary (lm.fit1)
+
+lm(medv ∼ lstat * age , data = Boston) #linear model where we have an INTERACTION between lstat and age
+#the interaction term is included to indicate a relationship between lstat and age (collinearity)
+#the model itself is same thing as mdev = lstat + age + lstat:age
+summary(lm(medv ∼ lstat * age , data = Boston))
+
+lm.fit2 <- lm(medv ∼ lstat + I(lstat^2))
+summary (lm.fit2) #this quadratic model is noticeably better fit than the linear model
+anova(lm.fit2) #analysis of variance for the nonlinear model. Gives us degrees freedom, SSE, MSE, f and p values
+
+par (mfrow = c(2, 2))
+plot(lm.fit2)
+lm.fit5 <- lm(medv ∼ poly (lstat , 5)) #creates a fifth order polynomial to model the data
+summary (lm.fit5)
+anova(lm.fit5)
+anova(lm.fit2)
+#much lower MSE for the 5th degree polynomial, larger F values and smaller SSE. This combined with larger R^2 for the
+#5th order polynomial fit provides strong evidence for a better fit
+
+?poly #helps with polynomial function in R
+
+lm.fit7 = lm(medv ~ log(rm), data=Boston)
+summary (lm(medv ∼ log(rm), data = Boston)) #recall rm is one of the predictors and we are taking the log of it
