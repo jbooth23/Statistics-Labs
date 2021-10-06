@@ -1,0 +1,264 @@
+##CHAPTER 4 LAB##
+
+install.packages("e1071")
+
+library (ISLR2)
+names (Smarket)
+dim (Smarket) #there are 8 predictors and 1 response in the Smarket data therefore there are 9 dimensions
+#the response variable is direction - whether the stock market will go UP or DOWN - based on the 8 predictors
+summary (Smarket)
+
+#summary command gives us the min, max, and mean values for the 8 predictors and the results of the qualitative response
+#(direction). The market went up on 648 days and down on 602
+
+cor (Smarket[, -9]) #the cor command tells us correlations between pairs of variables. We include [, -9] in the command so that
+#the 9th variable, the response, is excluded. Why? Because the response is qualitative and correlation does not know how to
+#handle a qualitative variable and will return an error
+
+#the results of this command shows that any two of the same variables, say Lag1 and Lag1, are perfectly correlated with each other
+#as we would expect. More importantly, it is shown that most of the variables have very low correlations between each other
+
+correlation = cor(Smarket[, -9])
+max(correlation) #max correlation is 1, which only exists between two of the same variables
+min(correlation) #minimum correlation is -0.0484
+mean(correlation) #mean correlation is 0.137 so on average, correlation in this dataset is very low
+
+attach (Smarket)
+plot (Volume) #volume denotes the number of shares traded on the prior day, in billions. Plotting this variable shows it has a
+#modestly increasing slope over time, which explains why its correlation with year is 0.539
+
+#now we are going to make a logistic model (given by the glm command which means general linear model), between the qual. response
+#direction and the quantitative predictors lag1, lag2, lag3, lag4, lag5, and volume.
+
+#lag1 thru 5 denote the percentage market return on each of the previous 5 days and volume, as noted above, denotes the number of
+#shares traded on the prior day.
+
+glm.fits <- glm (
+  Direction ∼ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume ,
+  data = Smarket , family = binomial
+)
+summary (glm.fits)
+
+#this model is quite bad. All p values are far above 0.05 with the best p value existing for lag1 at 0.145. Even so, this value
+#indicates, at best, a weak negative relationship with the previous days returns and the direction of the market.
+#all coefficients are not statistically significant
+
+#suppose we want to try using this model to predict whether, on a given day, the market will go UP (dir = 1) or DOWN (dir = 0)
+
+glm.probs <- predict (glm.fits , type = "response") #this command creates glm.probs which predicts the response based on glm.fits
+glm.probs[1:10] #and this predicts the likelihood market increase for 10 sample values 
+contrasts (Direction) #the conrrasts function tells us that 'down' corresponds to 0 and 'up' corresponds to 1
+
+#for testing the model on all of our training data, 1250 elements, we use the rep function (it replicates down element
+#1250 times). Then, for glm.probs > 0.5 (a predict value bigger than 0.5), any of these down elements are reclassified as 'Up'
+
+glm.pred <- rep (" Down ", 1250) 
+glm.pred[glm.probs > .5] = "Up"
+
+#looking at the R global environment, some of the Down elements have been changed to Up, based on the Bayes classifier used in
+#the above code
+
+table (glm.pred , Direction) #the table function then tells us how many observations were correctly and incorrectly classified
+#based on our predictors
+
+#to read a confusion matrix, the values on the diagonal are the ones correctly predicted and the ones off the diagonal are those
+#which were not. Here, 652 observations were correctly predicted or making the model 52.16% accurate overall
+
+#however, the model is only 24.09% accurate for predicting decreases in the market (Down) but 78.2% accurate for predicting
+#increases
+
+#this seems like an improvement on random guessing (flipping a coin) but it may be no better at all as this is approximately 48%
+#error on predicting the results used to make the model correctly. To predict the results for observations not included in the
+#model dataset, the predictions will very likely be worse. To get a better idea of how the model would do in this instance we
+#fit the model to part of the data and then test it on the remainder
+
+#in this case, the training data is set to years before 2005 (2001 thru 2004) and we create a new dataset Smarket.2005 for all data
+#after 2004 (given by [!train,]) which excludes the train dataset
+
+train <- (Year < 2005)
+Smarket.2005 <- Smarket[!train , ] #Smarket.2005 consists of 252 observations out of 1250. This will serve as our test data
+dim (Smarket.2005)
+Direction.2005 <- Direction[!train]
+
+glm.fits <- glm (Direction ∼ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume, data = Smarket, family = binomial, subset = train)
+
+#this creates a logistic model between direction of market and the predictors but for the subset of the data denoted by train
+
+glm.probs <- predict (glm.fits , Smarket.2005, type = "response") #this command indicates that we intend to preform testing on
+#Smarket.2005, that is the 252 observations in 2005
+
+glm.pred <- rep (" Down ", 252)
+glm.pred[glm.probs > .5] <- "Up"
+Direction.2005
+table (glm.pred , Direction.2005)  
+
+#the values on the diagonal of the table tell us instances where the predictions were correct and those off the diagonal are when
+#the predictions are false. Here, 48.01% of results were correctly predicted and 52% were not. Thus, altering our sampling method
+#has identified 4% of additional error that was not previously predicted
+
+#this result isn't very surprising given that none of the p values in our original model were statistically significant. If we 
+#remove the variables with the worst p values we arrive at a model between direction and lag1 and lag2
+
+glm.fits <- glm (Direction ∼ Lag1 + Lag2 , data = Smarket ,
+                 family = binomial , subset = train)
+summary(glm.fits)
+
+#the p values still are not statistically significant but are a bit less awful at p = 0.282 and p = 0.389 for B1 and B2 each
+#we rerun some of our previous code to determine the strength of fit of this model
+
+glm.probs <- predict (glm.fits , Smarket.2005,
+                      type = "response")
+glm.pred <- rep (" Down ", 252)
+glm.pred[glm.probs > .5] <- "Up"
+table (glm.pred , Direction.2005)
+Direction.2005
+mean (glm.pred == Direction.2005) #this makes the accurate prediction 56% of the time for our 252 test observations.
+#In particular it is 75% accurate for predicting market increases and 31.5% accurate for predicting decreases.
+#that is an 8% improvement over the prior model making this modestly better than random guessing
+
+#we may want to predict the likelihood of a market increase, or decrease, for particular values (of lag1 and lag2) in which case
+#we use the predict function below
+
+predict (glm.fits,
+         newdata =
+           data.frame (Lag1 = c(1.2, 1.5), Lag2 = c(1.1, -0.8)),
+         type = "response"
+)
+
+#for the given values for each predictor, the market has a 47.9% and a 49.6% chance of increasing respectively
+
+library (MASS) #we call the MASS library in order to use the lda function
+
+lda.fit <- lda (Direction ∼ Lag1 + Lag2 , data = Smarket ,
+                  subset = train) #the lda.fit command creates a LINEAR DISCRIMINANT ANALYSIS between Direction, lag1, and lag2
+lda.fit
+
+#this tells us that the market went down 49.2% of the time and up 50.8% of the time (seen in the 'prior probabilities of groups'
+#section)
+
+plot(lda.fit)
+lda.pred <- predict (lda.fit , Smarket.2005)  #again we are predicting results of the market with the 252 observations from 2005
+names (lda.pred)
+
+lda.class <- lda.pred$class
+table (lda.class, Direction.2005) #this command produces a table very similar to the one given by logistic regression
+#once again, 56% of the 252 TEST observations are correctly predicted, with the majority being for predictions of market increase
+
+mean (lda.class == Direction.2005) #the mean command will also give us this information though it sometimes does not work
+#properly? unsure
+
+#the following command creates a Quadratic Discriminant Analysis (nonlinear approach) between Direction and Lag1 and Lag2 using
+#the stock market data
+
+qda.fit <- qda (Direction ∼ Lag1 + Lag2 , data = Smarket ,
+                subset = train)
+qda.fit
+qda.class <- predict (qda.fit , Smarket.2005)$class
+table (qda.class , Direction.2005)
+Direction.2005 #the Direction.2005 command tells us the individual classification of every observation (Down or Up)
+
+mean(qda.class == Direction.2005) #this fit is a bit better. 60% vs 56%
+
+#the table also tells us that the quadratic fit is terrible for predicting market DECREASE (27% accuracy) but is very good for
+#predicting market INCREASE (80% accurate) so the quadratic model is accounting for more increase with greater variability
+#regarding market drops
+
+library (e1071) #we import the e1071 package in order to preform Naive Bayes on the stock market data
+
+
+#before continuing with this lab we will go back and review section material for Naive Bayes, KNN, and Poisson Regression
+
+
+
+nb.fit <- naiveBayes (Direction ∼ Lag1 + Lag2 , data = Smarket,
+                      subset = train)
+nb.fit
+
+mean (Lag1[train][Direction[train] == " Down "])
+sd(Lag1[train][Direction[train] == " Down "])
+
+nb.class <- predict (nb.fit , Smarket.2005)
+table (nb.class , Direction.2005)
+Direction.2005
+
+mean(nb.class == Direction.2005)
+
+nb.preds <- predict (nb.fit , Smarket.2005, type = "raw")
+nb.preds[1:5, ]
+
+library(class)
+
+train.X <- cbind (Lag1 , Lag2)[train , ]
+test.X <- cbind (Lag1 , Lag2)[!train , ]
+train.Direction <- Direction[train]
+
+set.seed (1)
+knn.pred <- knn (train.X, test.X, train.Direction , k = 1)
+table (knn.pred , Direction.2005)
+Direction.2005
+
+knn.pred <- knn (train.X, test.X, train.Direction , k = 3)
+table (knn.pred , Direction.2005)
+Direction.2005
+mean (knn.pred == Direction.2005)
+
+#this last segment is for POISSON regression
+
+attach (Bikeshare)
+dim (Bikeshare) #8645 rows and 15 columns
+
+names (Bikeshare) #all the variables (predictors and response) in the bikeshare dataset
+
+mod.lm <- lm(
+  bikers ∼ mnth + hr + workingday + temp + weathersit ,
+  data = Bikeshare
+)
+summary (mod.lm)
+
+contrasts (Bikeshare$hr) = contr.sum (24)
+contrasts (Bikeshare$mnth) = contr.sum (12)
+mod.lm2 <- lm(
+  bikers ∼ mnth + hr + workingday + temp + weathersit ,
+  data = Bikeshare
+)
+summary (mod.lm2)
+
+sum (( predict (mod.lm) - predict (mod.lm2))^2)
+
+all.equal ( predict (mod.lm), predict (mod.lm2))
+
+coef.months <- c( coef (mod.lm2)[2:12],
+                  -sum ( coef (mod.lm2)[2:12]))
+plot (coef.months , xlab = " Month ", ylab = " Coefficient ",
+      xaxt = "n", col = " blue ", pch = 19, type = "o")
+axis (side = 1, at = 1:12, labels = c("J", "F", "M", "A",
+                                      "M", "J", "J", "A", "S", "O", "N", "D"))
+coef.hours <- c( coef (mod.lm2)[13:35],
+                 -sum ( coef (mod.lm2)[13:35]))
+plot (coef.hours , xlab = " Hour ", ylab = " Coefficient ",
+        col = " blue ", pch = 19, type = "o")
+
+
+mod.pois <- glm (
+  bikers ∼ mnth + hr + workingday + temp + weathersit ,
+  data = Bikeshare , family = poisson
+)                                          #the .pois command creates a POISSON regression. The .lm command creates a LINEAR
+                                           #regression
+summary (mod.pois)
+
+par(mfrow=c(2,2))
+plot(mod.pois)
+
+coef.mnth <- c( coef (mod.pois)[2:12],
+                -sum ( coef (mod.pois)[2:12]))
+plot (coef.mnth , xlab = " Month ", ylab = " Coefficient ",
+        xaxt = "n", col = " blue ", pch = 19, type = "o")
+axis (side = 1, at = 1:12, labels = c("J", "F", "M", "A", "M",
+                                        "J", "J", "A", "S", "O", "N", "D"))
+coef.hours <- c( coef (mod.pois)[13:35],
+                   -sum ( coef (mod.pois)[13:35]))
+plot (coef.hours , xlab = " Hour ", ylab = " Coefficient ",
+        col = " blue ", pch = 19, type = "o")
+
+plot ( predict (mod.lm2), predict (mod.pois , type = "response"))
+abline (0, 1, col = 2, lwd = 3)
