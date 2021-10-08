@@ -1,0 +1,225 @@
+##CHAPTER 6 LAB##
+
+library(glmnet)
+library(ISLR2)
+View(Hitters) #the View command lets us independently view the Hitters dataset in a new window
+names(Hitters) #the names command tells us the column names - or all the independent and dependent variables of the data set
+
+#what we are going to do in this part of the lab is predict a baseball players salary based on statistics 
+#in their previous year of play
+
+sum(is.na(Hitters$Salary)) #this means we have 59 observations where no player salary was recorded
+
+dim(Hitters) #the current dimensions of the Hitters data - 322 rows and 20 columns
+
+Hitters <- na.omit (Hitters) #this deletes all 59 rows where data was missing (the missing player salaries)
+dim(Hitters) #this leaves us with 322 - 59 = 263 rows of 20 columns of data
+
+#best subset selection is the process of determining the combination of predictors that will lead to the lowest SSE (sum of squared
+#errors)
+
+library(leaps)
+
+regfit.full <- regsubsets (Salary ∼ ., Hitters)
+summary(regfit.full)
+
+#an asterisk means that a variable is included. regfit will only tell us the best models up to 8 variables. Some of the best models
+#indicated here are... Salary ~ CRBI (one variable), Salary ~ Hits + CRBI (two variable), and so on. Note that the colums note the
+#number of variables involved in each model. That is,
+#Column 1 indicates a linear model of 1 predictors
+#Column 2 indicated a linear model of 2 predictors
+#Column 3 indicates a linear model of 3 predictors
+#and so on...
+
+regfit.full <- regsubsets (Salary ∼ ., data = Hitters ,
+                           nvmax = 19) #nvmax command allows us to view the best model fit for all 19 predictors and the response
+#(20 variables total)
+reg.summary = summary(regfit.full) #use the summary command to view the best model for each no. of predictors
+
+names (reg.summary)
+reg.summary$rsq #rsq is the R^2 value also known as the coefficient of determination (amt of variability explained by the model)
+
+#for 1 variable this is 32% of variability explained, increasing to 55% at all 19 variables
+
+reg.summary$rss #the SSE for every model
+reg.summary$bic #the BIC for every model. interestingly, the BIC drops precipitously for high numbers of variables (around 19) after
+#increasing or flatlining until 6-9 predictors.
+
+par(mfrow=c(2,2))
+plot(reg.summary$rss, xlab = " Number of Variables ", ylab = " RSS ", type = "l") #plots the SSE. 
+#type = 1 will connect all the points with LINES
+points (19, reg.summary$cp[19], col = " red ", cex = 2,
+        pch = 20)
+
+plot(reg.summary$adjr2, xlab = " Number of Variables ",
+     ylab = " Adjusted RSq ", type = "l") #plots the adjusted R^2 which penalizes model fit based on predictors 
+#(overfitting penalty)
+
+which.max(reg.summary$adjr2) #the 11th model gives the highest adjusted R^2 value
+which.min(reg.summary$rss) #the 19th model gives the lowest SSE (as expected, but its important to remember this can be due to
+#overfitting)
+
+points(11, reg.summary$adjr2[11], col = " red ", cex = 2,
+        pch = 20) #the points function allows us to MARK a particular point of interest. in this case its the highest adj R^2 value
+
+plot(reg.summary$cp, xlab = " Number of Variables ", ylab = "Cp", type = "l")
+which.min(reg.summary$cp) #the 10th model has the lowest cp
+points (10, reg.summary$cp[10], col = " red ", cex = 2,
+        pch = 20)
+
+plot(reg.summary$bic, xlab = " Number of Variables ",ylab = " BIC ", type = "l")
+which.min(reg.summary$bic) #the 6th model has the lowest BIC value
+points (6, reg.summary$cp[6], col = " red ", cex = 2,
+        pch = 20)
+
+par(mfrow=c(2,2))
+
+#we can plot all 19 models with respect to BIC, R^2, cp, and adj R^2. This provides a nice way to visualize everything at once
+
+plot (regfit.full, scale = "r2")
+plot (regfit.full, scale = "adjr2")
+plot (regfit.full, scale = "Cp")
+plot (regfit.full, scale = "bic")
+
+coef(regfit.full, 6) #this gives us the coefficients for the model involving 6 predictors. We are interested in this model because
+#it has the lowest BIC
+
+regfit.fwd <- regsubsets (Salary ∼ ., data = Hitters ,
+                          nvmax = 19, method = "forward") #does the same thing as our model selection above except it's forward
+#selection. That is, we start with 0 predictors and intercept and continue adding predictors that provide the lowest SSE
+summary (regfit.fwd)
+
+regfit.bwd <- regsubsets (Salary ∼ ., data = Hitters ,
+                          nvmax = 19, method = "backward") #same as above but we have changed the method of selection from forwards
+#to backwards
+
+reg.fwdsummary = summary(regfit.bwd)
+
+par(mfrow=c(2,4))
+plot(reg.fwdsummary$rss, xlab = " Number of Variables ", ylab = " RSS ", type = "l") #plots the SSE. 
+#type = 1 will connect all the points with LINES
+points (19, reg.fwdsummary$cp[19], col = " red ", cex = 2,
+        pch = 20)
+
+plot(reg.fwdsummary$adjr2, xlab = " Number of Variables ",
+     ylab = " Adjusted RSq ", type = "l") #plots the adjusted R^2 which penalizes model fit based on predictors 
+#(overfitting penalty)
+
+which.max(reg.fwdsummary$adjr2) #the 11th model gives the highest adjusted R^2 value
+which.min(reg.fwdsummary$rss) #the 19th model gives the lowest SSE (as expected, but its important to remember this can be due to
+#overfitting)
+
+points(11, reg.fwdsummary$adjr2[11], col = " red ", cex = 2,
+       pch = 20) #the points function allows us to MARK a particular point of interest. in this case its the highest adj R^2 value
+
+plot(reg.fwdsummary$cp, xlab = " Number of Variables ", ylab = "Cp", type = "l")
+which.min(reg.fwdsummary$cp) #the 10th model has the lowest cp
+points (10, reg.fwdsummary$cp[10], col = " red ", cex = 2,
+        pch = 20)
+
+plot(reg.fwdsummary$bic, xlab = " Number of Variables ",ylab = " BIC ", type = "l")
+which.min(reg.fwdsummary$bic) #the 8th model has the lowest BIC value
+points (6, reg.fwdsummary$cp[6], col = " red ", cex = 2,
+        pch = 20)
+
+#now we do the same thing but for the backwards model selection
+
+reg.bwdsummary = summary(regfit.bwd)
+
+plot(reg.bwdsummary$rss, xlab = " Number of Variables ", ylab = " RSS ", type = "l") #plots the SSE. 
+#type = 1 will connect all the points with LINES
+points (19, reg.bwdsummary$cp[19], col = " red ", cex = 2,
+        pch = 20)
+
+plot(reg.bwdsummary$adjr2, xlab = " Number of Variables ",
+     ylab = " Adjusted RSq ", type = "l") #plots the adjusted R^2 which penalizes model fit based on predictors 
+#(overfitting penalty)
+
+which.max(reg.bwdsummary$adjr2) #the 11th model gives the highest adjusted R^2 value
+which.min(reg.bwdsummary$rss) #the 19th model gives the lowest SSE (as expected, but its important to remember this can be due to
+#overfitting)
+
+points(11, reg.bwdsummary$adjr2[11], col = " red ", cex = 2,
+       pch = 20) #the points function allows us to MARK a particular point of interest. in this case its the highest adj R^2 value
+
+plot(reg.bwdsummary$cp, xlab = " Number of Variables ", ylab = "Cp", type = "l")
+which.min(reg.bwdsummary$cp) #the 10th model has the lowest cp
+points (10, reg.bwdsummary$cp[10], col = " red ", cex = 2,
+        pch = 20)
+
+plot(reg.bwdsummary$bic, xlab = " Number of Variables ",ylab = " BIC ", type = "l")
+which.min(reg.bwdsummary$bic) #the 8th model has the lowest BIC value
+points (8, reg.bwdsummary$cp[8], col = " red ", cex = 2,
+        pch = 20)
+
+#note that for both forward and backward selection all results were the same compared to the best model selection except the BIC.
+#the lowest BIC for both was observed in the model with 8 predictors opposed to 6 with standard model selection
+
+coef(regfit.full, 8)
+coef(regfit.fwd, 8) #notice that how we SELECT our models can cause them to have different coefficient values, as they do here
+#they also have DIFFERENT coefficients. with standard selection, we include CHmRun while forward selection instead includes
+#CRBI
+
+coef(regfit.bwd, 8) #here backward selection generated the exact same variables and coefficients as foward selection for 8 vars
+
+#now we are going to do the same thing but using validation and cross validation approaches in order to ALSO evaluate models based
+#on their estimated test errors
+
+#we do this by dividing observations in the HITTERS database into training and testing sets. Training sets are observations marked
+#as TRUE and testing sets are observations marked as FALSE (which is how we will be distinguishing them)
+
+set.seed (1)
+train <- sample (c(TRUE , FALSE), nrow (Hitters),
+                   replace = TRUE)
+test <- (!train) #!train means 'not in train' aka not true or FALSE (per DeMorgan's Laws)
+
+#per the global environment there are 263 observations in the training data
+#and there are 263 observations in the test data
+
+regfit.best <- regsubsets (Salary ∼ ., data = Hitters[train , ], nvmax = 19) 
+
+#we will preform best model selection on the TRAINING data
+
+names(regfit.best)
+par(mfrow=c(2,2))
+
+plot(regfit.best, scale = "r2")
+plot(regfit.best, scale = "adjr2")
+plot(regfit.best, scale = "bic")
+
+test.mat <- model.matrix (Salary ∼ ., data = Hitters[test, ]) #creates a matrix of the test data
+
+val.errors <- rep (NA, 19)
+for (i in 1:19) {
+  coefi <- coef (regfit.best , id = i)
+  pred <- test.mat[, names (coefi)] %*% coefi
+  val.errors[i] <- mean ((Hitters$Salary[test] - pred)^2)
+}
+
+#what this for loop basically does is it multiplies the coefficients from each of the 'best' models selected by regfit.best
+#by the test data for each of those variables. This results in predicted values for Salary. The MSE is then computed and is stored
+#as an integer in val.errors. We can then view all the returned MSE to determine which model fit is closest for the test data
+
+val.errors #prints the stored MSE for all 19 models
+
+which.min(val.errors) #this tells us the model with the lowest MSE (the model that predicted the test data the best)
+#in this case, that model is the one with 7 predictors
+
+coef(regfit.best, 7)
+
+predict.regsubsets <- function (object , newdata , id, ...) {
+  form <- as.formula (object$call[[2]])
+  mat <- model.matrix (form , newdata)
+  coefi <- coef (object , id = id)
+  xvars <- names (coefi)
+  mat[, xvars] %*% coefi
+}
+
+#above we did the validation method in conjunction with best subset selection. now we do the same but with cross validation
+
+k <- 10 #we set k = 10 for 10 fold cross validation (divvying up the observations into 10 test groups)
+n <- nrow (Hitters) 
+set.seed (1)
+folds <- sample ( rep (1:k, length = n))
+cv.errors <- matrix (NA, k, 19,
+                       dimnames = list (NULL , paste (1:19)))
